@@ -3,3 +3,5 @@ PlayMakerCustomComponents/Logs/
 PlayMakerCustomComponents/Library/
 PlayMakerCustomComponents/.vscode/
 PlayMakerCustomComponents/PlayMakerCustomComponents.sln
+PlayMakerCustomComponents/Assembly-CSharp-Editor.csproj
+PlayMakerCustomComponents/Assembly-CSharp.csproj
