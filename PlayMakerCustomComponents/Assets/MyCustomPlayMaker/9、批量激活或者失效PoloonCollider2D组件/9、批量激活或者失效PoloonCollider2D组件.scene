@@ -500,7 +500,7 @@ MonoBehaviour:
       transitions: []
       actionData:
         actionNames:
-        - SetPolygonCollider2DEnabledArray
+        - SetPolygonCollider2DEnabledArray_DDMZ
         customNames:
         - 
         actionEnabled: 01

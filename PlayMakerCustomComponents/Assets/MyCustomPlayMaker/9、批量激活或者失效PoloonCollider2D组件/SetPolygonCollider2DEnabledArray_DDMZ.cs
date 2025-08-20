@@ -3,7 +3,7 @@ using HutongGames.PlayMaker;
 
 [ActionCategory("Custom/Component")]
 [HutongGames.PlayMaker.Tooltip("批量启用或禁用 FsmArray(GameObject) 中的 PolygonCollider2D 组件。")]
-public class SetPolygonCollider2DEnabledArray : FsmStateAction
+public class SetPolygonCollider2DEnabledArray_DDMZ : FsmStateAction
 {
     [UIHint(UIHint.Variable)]
     [RequiredField]
