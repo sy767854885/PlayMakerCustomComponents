@@ -194,14 +194,14 @@ MonoBehaviour:
           networkSync: 0
           value: {fileID: 705368425}
         fsmOwnerDefaultParams:
-        - ownerOption: 0
+        - ownerOption: 1
           gameObject:
             useVariable: 0
             name: 
             tooltip: 
             showInInspector: 0
             networkSync: 0
-            value: {fileID: 0}
+            value: {fileID: 605764442}
         animationCurveParams: []
         functionCallParams: []
         fsmTemplateControlParams: []
