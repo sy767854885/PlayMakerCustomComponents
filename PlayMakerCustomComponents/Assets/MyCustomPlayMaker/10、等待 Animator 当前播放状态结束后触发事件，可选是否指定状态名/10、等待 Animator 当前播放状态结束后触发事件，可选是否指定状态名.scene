@@ -202,7 +202,7 @@ MonoBehaviour:
         - WaitAnimatorStateFinish_DDMZ
         customNames:
         - 
-        actionEnabled: 01
+        actionEnabled: 00
         actionIsOpen: 01
         actionStartIndex: 00000000
         actionHashCodes: 6b540704
@@ -352,28 +352,11 @@ MonoBehaviour:
       objectVariables: []
       materialVariables: []
       textureVariables: []
-      arrayVariables:
-      - useVariable: 1
-        name: "\u76EE\u6807\u7269\u4F53"
-        tooltip: 
-        showInInspector: 1
-        networkSync: 0
-        type: 3
-        objectTypeName: UnityEngine.Object
-        floatValues: []
-        intValues: 
-        boolValues: 
-        stringValues: []
-        vector4Values: []
-        objectReferences:
-        - {fileID: 0}
-        - {fileID: 0}
-        - {fileID: 0}
-        - {fileID: 0}
+      arrayVariables: []
       enumVariables: []
       categories:
       - 
-      variableCategoryIDs: 00000000
+      variableCategoryIDs: 
     description: 
     docUrl: 
     showStateLabel: 0
