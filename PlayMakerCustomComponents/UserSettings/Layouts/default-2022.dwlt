@@ -43,8 +43,8 @@ MonoBehaviour:
     y: 0
     width: 509
     height: 672
-  m_MinSize: {x: 201, y: 221}
-  m_MaxSize: {x: 4001, y: 4021}
+  m_MinSize: {x: 200, y: 200}
+  m_MaxSize: {x: 4000, y: 4000}
   m_ActualView: {fileID: 26}
   m_Panes:
   - {fileID: 26}
@@ -126,7 +126,7 @@ MonoBehaviour:
   m_MinSize: {x: 100, y: 100}
   m_MaxSize: {x: 8096, y: 16192}
   vertical: 1
-  controlID: 177
+  controlID: 170
   draggingID: 0
 --- !u!114 &6
 MonoBehaviour:
@@ -256,7 +256,7 @@ MonoBehaviour:
   m_MinSize: {x: 500, y: 100}
   m_MaxSize: {x: 40480, y: 16192}
   vertical: 0
-  controlID: 258
+  controlID: 251
   draggingID: 0
 --- !u!114 &11
 MonoBehaviour:
@@ -303,7 +303,7 @@ MonoBehaviour:
   m_MinSize: {x: 200, y: 100}
   m_MaxSize: {x: 16192, y: 16192}
   vertical: 1
-  controlID: 43
+  controlID: 54
   draggingID: 0
 --- !u!114 &13
 MonoBehaviour:
@@ -560,7 +560,7 @@ MonoBehaviour:
     m_OverlaysVisible: 1
   m_LockTracker:
     m_IsLocked: 0
-  m_LastSelectedObjectID: 31268
+  m_LastSelectedObjectID: -27702
 --- !u!114 &20
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -676,10 +676,24 @@ MonoBehaviour:
       scrollPosition: {x: -137, y: -137}
       zoom: 1
     selectionHistory:
-      backList: []
+      backList:
+      - fsmComponentID: -27706
+        fsmComponent: {fileID: 0}
+        fsmTemplate: {fileID: 0}
       forwardList: []
-      selectionCache: []
-      recentlySelectedList: []
+      selectionCache:
+      - fsmComponentID: -27706
+        fsmTemplate: {fileID: 0}
+        stateName: "\u72B6\u6001 3"
+        stateNames:
+        - "\u72B6\u6001 3"
+        transitionIndex: -1
+        scrollPosition: {x: -14, y: -53}
+        zoom: 1
+      recentlySelectedList:
+      - fsmComponentID: -27706
+        fsmComponent: {fileID: 0}
+        fsmTemplate: {fileID: 0}
 --- !u!114 &23
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -717,9 +731,9 @@ MonoBehaviour:
   m_SceneHierarchy:
     m_TreeViewState:
       scrollPos: {x: 0, y: 0}
-      m_SelectedIDs: 
+      m_SelectedIDs: b2710000
       m_LastClickedID: 0
-      m_ExpandedIDs: f4faffff
+      m_ExpandedIDs: 8a95ffff489affff04a1ffffd6a5ffff3eabffff1eb0fffff8b5ffff22bbfffffec0fffff0c5ffffe4caffff6ae8fffff4faffff
       m_RenameOverlay:
         m_UserAcceptedRename: 0
         m_Name: 
@@ -835,7 +849,7 @@ MonoBehaviour:
     m_SkipHidden: 0
     m_SearchArea: 1
     m_Folders:
-    - "Assets/MyCustomPlayMaker/7\u3001\u7ED9\u4E00\u5806FSM\u53D1\u9001\u89E6\u53D1\u4E8B\u4EF6"
+    - "Assets/MyCustomPlayMaker/20\u3001\u6839\u636E\u5B57\u7B26\u4E32key\u5339\u914D\u5E76\u89E6\u53D1\u5BF9\u5E94\u4E8B\u4EF6"
     m_Globs: []
     m_OriginalText: 
     m_ImportLogFlags: 0
@@ -877,10 +891,10 @@ MonoBehaviour:
       m_Icon: {fileID: 0}
       m_ResourceFile: 
   m_AssetTreeState:
-    scrollPos: {x: 0, y: 0}
+    scrollPos: {x: 0, y: 156}
     m_SelectedIDs: 
     m_LastClickedID: 0
-    m_ExpandedIDs: ffffffff000000000e71000010710000127100001471000016710000187100001a7100001c7100001e71000020710000227100002471000026710000287100002a7100002c7100002e710000307100003271000034710000
+    m_ExpandedIDs: ffffffff000000000e71000010710000127100001471000016710000187100001a7100001c71000026710000287100002a7100002c7100002e710000307100003271000034710000b2710000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1441,7 +1455,7 @@ MonoBehaviour:
   m_Rotation:
     m_Target: {x: -0.0069182985, y: 0.9422837, z: -0.33417904, w: -0.019507097}
     speed: 2
-    m_Value: {x: -0.0069182985, y: 0.9422837, z: -0.33417904, w: -0.019507097}
+    m_Value: {x: -0.0069182897, y: 0.94228244, z: -0.3341786, w: -0.019507071}
   m_Size:
     m_Target: 5.7573295
     speed: 2
