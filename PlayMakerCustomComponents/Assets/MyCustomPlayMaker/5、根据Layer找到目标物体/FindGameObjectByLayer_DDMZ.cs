@@ -1,47 +1,76 @@
 using UnityEngine;
 using HutongGames.PlayMaker;
 
-[ActionCategory("Custom")]  // 在 PlayMaker 中分类到 "Custom"
-[HutongGames.PlayMaker.Tooltip("查找第一个处于指定 Layer 的 GameObject。")]
+[ActionCategory("Custom")]
+[HutongGames.PlayMaker.Tooltip("查找第一个处于指定Layer的GameObject；Layer可用编号或名称。")]
 public class FindGameObjectByLayer_DDMZ : FsmStateAction
 {
-    [HutongGames.PlayMaker.Tooltip("要查找的 Layer（层级编号）")]
-    public FsmInt layer;  // 输入的目标 Layer 值（整数）
+    [HutongGames.PlayMaker.Tooltip("优先使用Layer名称（非空时生效）；例如：Default、UI、Player")]
+    public FsmString layerName;
 
-    [HutongGames.PlayMaker.Tooltip("存储找到的 GameObject")]
+    [HutongGames.PlayMaker.Tooltip("Layer编号（当Layer名称为空或无效时使用）")]
+    public FsmInt layer;
+
+    [HutongGames.PlayMaker.Tooltip("是否包含未激活( inactive )物体")]
+    public FsmBool includeInactive;
+
+    [HutongGames.PlayMaker.Tooltip("存储找到的GameObject（只返回第一个匹配项）")]
     [UIHint(UIHint.Variable)]
-    public FsmGameObject storeResult;  // 输出变量，用来存储找到的物体
+    public FsmGameObject storeResult;
 
-    /// <summary>
-    /// 重置参数（当 Action 初始化时调用）
-    /// </summary>
     public override void Reset()
     {
+        layerName = "";
         layer = 0;
+        includeInactive = false;
         storeResult = null;
     }
 
-    /// <summary>
-    /// 进入状态时执行一次
-    /// </summary>
     public override void OnEnter()
     {
-        // 获取场景中所有的 GameObject
-        GameObject[] allObjects = GameObject.FindObjectsOfType<GameObject>();
-
-        // 遍历所有对象
-        foreach (GameObject go in allObjects)
+        // 解析 Layer（名称优先）
+        int targetLayer = -1;
+        string ln = layerName.Value;
+        if (!string.IsNullOrEmpty(ln))
         {
-            // 判断该物体是否处于指定 Layer
-            if (go.layer == layer.Value)
-            {
-                // 存储找到的物体并退出循环（只取第一个）
-                storeResult.Value = go;
-                break;
-            }
+            targetLayer = LayerMask.NameToLayer(ln);
+        }
+        if (targetLayer < 0)
+        {
+            targetLayer = layer.Value; // 回退到编号
         }
 
-        // 结束 Action
+        // 如果Layer仍然非法，直接结束
+        if (targetLayer < 0 || targetLayer > 31)
+        {
+            storeResult.Value = null;
+            Finish();
+            return;
+        }
+
+        // 获取场景中所有GameObject
+        GameObject[] allObjects;
+#if UNITY_2022_2_OR_NEWER
+        allObjects = Object.FindObjectsByType<GameObject>(
+            includeInactive.Value ? FindObjectsInactive.Include : FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+#else
+        allObjects = Object.FindObjectsOfType<GameObject>(includeInactive.Value);
+#endif
+
+        GameObject found = null;
+
+        for (int i = 0; i < allObjects.Length; i++)
+        {
+            var go = allObjects[i];
+            if (go == null) continue;
+            if (go.layer != targetLayer) continue;
+
+            found = go;
+            break; // 只取第一个
+        }
+
+        storeResult.Value = found;
         Finish();
     }
 }
