@@ -367,7 +367,7 @@ MonoBehaviour:
         actionEnabled: 01
         actionIsOpen: 01
         actionStartIndex: 00000000
-        actionHashCodes: ac6ed402
+        actionHashCodes: 9ff80c02
         unityObjectParams: []
         fsmGameObjectParams:
         - useVariable: 0
@@ -396,7 +396,13 @@ MonoBehaviour:
           networkSync: 0
           value: 3
         fsmIntParams: []
-        fsmBoolParams: []
+        fsmBoolParams:
+        - useVariable: 0
+          name: 
+          tooltip: 
+          showInInspector: 0
+          networkSync: 0
+          value: 0
         fsmVector2Params: []
         fsmVector3Params: []
         fsmColorParams: []
@@ -408,12 +414,13 @@ MonoBehaviour:
         arrayParamTypes: []
         customTypeSizes: 
         customTypeNames: []
-        paramDataType: 130000000f000000
+        paramDataType: 130000000f00000011000000
         paramName:
         - alternateObject
         - duration
-        paramDataPos: 0000000000000000
-        paramByteDataSize: 0000000000000000
+        - cancelOnExit
+        paramDataPos: 000000000000000000000000
+        paramByteDataSize: 000000000000000000000000
     - name: "\u72B6\u6001 3"
       description: 
       colorIndex: 0
