@@ -1,8 +1,9 @@
 using UnityEngine;
 using HutongGames.PlayMaker;
+using System.Collections;
 
 [ActionCategory("Custom/Hit")]
-[HutongGames.PlayMaker.Tooltip("物体被击中后，显示另一个物体，在持续时间结束后再次隐藏。")]
+[HutongGames.PlayMaker.Tooltip("物体被击中后，立即显示另一个物体，并在持续时间结束后自动隐藏，但不阻塞后续逻辑。")]
 public class ShowAlternateObject_DDMZ : FsmStateAction
 {
     [RequiredField]
@@ -12,13 +13,10 @@ public class ShowAlternateObject_DDMZ : FsmStateAction
     [HutongGames.PlayMaker.Tooltip("显示持续的时间（秒）。小于等于0则立即隐藏。")]
     public FsmFloat duration;
 
-    private float _timer;
-
     public override void Reset()
     {
         alternateObject = null;
         duration = 0f;
-        _timer = 0f;
     }
 
     public override void OnEnter()
@@ -26,32 +24,25 @@ public class ShowAlternateObject_DDMZ : FsmStateAction
         if (alternateObject != null && alternateObject.Value != null)
         {
             alternateObject.Value.SetActive(true);
+
+            // 开启延时隐藏
+            if (duration.Value > 0f)
+            {
+                Fsm.Owner.StartCoroutine(HideAfterDelay(alternateObject.Value, duration.Value));
+            }
+            else
+            {
+                alternateObject.Value.SetActive(false);
+            }
         }
 
-        _timer = duration.Value;
-
-        if (_timer <= 0f)
-        {
-            EndAndHide();
-        }
-    }
-
-    public override void OnUpdate()
-    {
-        _timer -= Time.deltaTime;
-
-        if (_timer <= 0f)
-        {
-            EndAndHide();
-        }
-    }
-
-    private void EndAndHide()
-    {
-        if (alternateObject != null && alternateObject.Value != null)
-        {
-            alternateObject.Value.SetActive(false);
-        }
+        // 立即让 FSM 往下走
         Finish();
+    }
+
+    private IEnumerator HideAfterDelay(GameObject go, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (go != null) go.SetActive(false);
     }
 }
