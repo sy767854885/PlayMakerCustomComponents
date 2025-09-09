@@ -1,74 +1,101 @@
-using DG.Tweening;               // 引入 DOTween 动画库
-using HutongGames.PlayMaker;     // 引入 PlayMaker
+using System.Collections.Generic;
+using DG.Tweening;
+using HutongGames.PlayMaker;
 using UnityEngine;
 
-[ActionCategory("Custom/Enemy")]  // 在 PlayMaker Action 面板中归类到 "Custom/Enemy"
+[ActionCategory("Custom/Enemy")]
+[HutongGames.PlayMaker.Tooltip("沿给定路径（FsmArray<GameObject>）移动。目标被禁用时自动停止，空路径安全退出。")]
 public class MoveAlongPathAction_DDMZ : FsmStateAction
 {
     [RequiredField]
-    public FsmOwnerDefault gameObject;  // 要移动的目标物体（FSM拥有者或指定对象）
+    [HutongGames.PlayMaker.Tooltip("要移动的物体")]
+    public FsmOwnerDefault gameObject;
 
-    [Title("路径点 Transform[]")]
-    public FsmGameObject[] pathPoints;  // 路径点数组（每个点是一个Transform所在的GameObject）
+    [UIHint(UIHint.Variable)]
+    [ArrayEditor(VariableType.GameObject)]
+    [HutongGames.PlayMaker.Tooltip("路径点（FsmArray，元素类型为 GameObject；将取每个元素的 Transform.position）")]
+    public FsmArray pathPoints;
 
-    public FsmFloat duration;           // 移动整个路径所需的时间（秒）
+    [HutongGames.PlayMaker.Tooltip("移动时长（秒）")]
+    public FsmFloat duration;
 
-    public FsmEvent onCompleteEvent;    // 移动完成后要触发的事件（可选）
+    [HutongGames.PlayMaker.Tooltip("移动完成后触发的事件（可选）")]
+    public FsmEvent onCompleteEvent;
 
-    private Transform body;             // 缓存目标物体的Transform
+    [HutongGames.PlayMaker.Tooltip("当目标物体被 SetActive(false) 时，是否停止 Tween")]
+    public FsmBool stopWhenOwnerDisabled;
 
+    private GameObject ownerGo;
+    private Transform body;
+    private Tween tween;
 
-    /// <summary>
-    /// 重置参数（当Action被添加或重置时调用）
-    /// </summary>
     public override void Reset()
     {
         gameObject = null;
-        pathPoints = null;
-        duration = 3f;         // 默认移动时长为3秒
+        pathPoints = null;      // 在 FSM 里新建一个 FsmArray（元素类型设为 GameObject）
+        duration = 3f;
         onCompleteEvent = null;
+        stopWhenOwnerDisabled = true;
+        tween = null;
+        body = null;
+        ownerGo = null;
     }
 
-    /// <summary>
-    /// 进入状态时执行一次
-    /// </summary>
     public override void OnEnter()
     {
-        // 获取目标物体
-        GameObject go = Fsm.GetOwnerDefaultTarget(gameObject);
+        ownerGo = Fsm.GetOwnerDefaultTarget(gameObject);
+        if (ownerGo == null) { Finish(); return; }
+        body = ownerGo.transform;
 
-        // 如果目标物体不存在 或 没有路径点，则直接结束状态
-        if (go == null || pathPoints == null || pathPoints.Length == 0)
+        // —— 安全收集有效路径点 —— //
+        var list = new List<Vector3>();
+
+        if (pathPoints != null && pathPoints.Length > 0)
         {
-            Finish();
-            return;
-        }
-
-        // 缓存Transform，便于后续操作
-        body = go.transform;
-
-        // 构建路径点的世界坐标数组
-        Vector3[] path = new Vector3[pathPoints.Length];
-        for (int i = 0; i < pathPoints.Length; i++)
-        {
-            if (pathPoints[i] != null)
-                path[i] = pathPoints[i].Value.transform.position;
-        }
-
-        // 使用 DOTween 执行路径移动
-        body.DOPath(
-                path,                // 路径点数组
-                duration.Value,      // 移动时长
-                PathType.CatmullRom, // 路径类型：CatmullRom 插值，更平滑
-                PathMode.TopDown2D   // 路径模式：适合2D俯视角（忽略Z旋转）
-            )
-            .SetLookAt(0.01f)        // 移动过程中，物体朝向路径前方（0.01f表示微小偏移）
-            .SetEase(Ease.Linear)    // 匀速运动
-            .OnComplete(() =>        // 移动完成时回调
+            for (int i = 0; i < pathPoints.Length; i++)
             {
-                if (onCompleteEvent != null)
-                    Fsm.Event(onCompleteEvent); // 触发FSM事件
-                Finish();                        // 结束Action
-            });
+                var obj = pathPoints.Get(i) as GameObject; // FsmArray 元素以 object 存取
+                if (obj != null)
+                {
+                    list.Add(obj.transform.position);
+                }
+            }
+        }
+
+        // 路径点不足（0 或 1 个）时，不执行 Tween，直接结束
+        if (list.Count < 2) { Finish(); return; }
+
+        tween = body.DOPath(
+                    list.ToArray(),
+                    duration.Value,
+                    PathType.CatmullRom,
+                    PathMode.TopDown2D)
+                .SetEase(Ease.Linear)
+                .SetLookAt(0.01f)
+                .OnComplete(() =>
+                {
+                    if (onCompleteEvent != null) Fsm.Event(onCompleteEvent);
+                    Finish();
+                });
+    }
+
+    public override void OnUpdate()
+    {
+        if (stopWhenOwnerDisabled.Value && (ownerGo == null || !ownerGo.activeInHierarchy))
+        {
+            KillTween();
+            Finish();
+        }
+    }
+
+    public override void OnExit() => KillTween();
+
+    private void KillTween()
+    {
+        if (tween != null && tween.IsActive())
+        {
+            tween.Kill();
+            tween = null;
+        }
     }
 }

@@ -202,7 +202,7 @@ MonoBehaviour:
         - WaitAnimatorStateFinish_DDMZ
         customNames:
         - 
-        actionEnabled: 00
+        actionEnabled: 01
         actionIsOpen: 01
         actionStartIndex: 00000000
         actionHashCodes: 6b540704
