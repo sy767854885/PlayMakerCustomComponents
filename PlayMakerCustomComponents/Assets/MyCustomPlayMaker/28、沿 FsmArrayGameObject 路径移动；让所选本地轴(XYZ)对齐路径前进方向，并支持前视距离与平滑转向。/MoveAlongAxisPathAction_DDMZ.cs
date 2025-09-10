@@ -7,7 +7,7 @@ using HutongGames.PlayMaker;
 using UnityEngine;
 
 [ActionCategory("Custom/Enemy")]
-[HutongGames.PlayMaker.Tooltip("沿 FsmArray<GameObject> 路径移动；让所选本地轴(X/Y/Z)对齐路径前进方向，并支持前视距离与平滑转向。")]
+[HutongGames.PlayMaker.Tooltip("沿 FsmArray<GameObject> 路径移动；让所选本地轴(X/Y/Z)对齐路径前进方向，并支持前视距离与平滑转向。起点强制为第一个路径点。")]
 public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
 {
     [RequiredField]
@@ -105,17 +105,39 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
         if (ownerGo == null) { Finish(); return; }
         body = ownerGo.transform;
 
+        // 若未选择轴，则默认使用本地Z
         if (!aimWithLocalX.Value && !aimWithLocalY.Value && !aimWithLocalZ.Value)
             aimWithLocalZ.Value = true;
 
         pts = CollectPoints();
         if (pts == null || pts.Length < 2) { Finish(); return; }
 
+        // —— 关键改动：开场把物体位置“吸附”到第一个路径点 —— //
+        body.position = pts[0];
+
+        // 初始朝向：对齐到 P0->P1（按所选轴 & 反向）
+        Vector3 initDir = (pts[1] - pts[0]);
+        if (topDown2D.Value) initDir.z = 0f;
+        if (initDir.sqrMagnitude > EPS)
+        {
+            if (invertAxis.Value) initDir = -initDir;
+            initDir.Normalize();
+            Vector3 chosenLocalAxis = GetChosenLocalAxis();
+            Vector3 currentAxisWorld = body.TransformDirection(chosenLocalAxis);
+            if (currentAxisWorld.sqrMagnitude < EPS) currentAxisWorld = chosenLocalAxis; // 容错
+            Quaternion desired = Quaternion.FromToRotation(currentAxisWorld, initDir) * body.rotation;
+            body.rotation = desired; // 入场时立即对齐
+        }
+
+        // look 索引从 1 开始（瞄向第二个点）
         lookIdx = 1;
+
+        // 顶视或全3D模式（仅影响 DOTween 内部路径解算）
         var mode = topDown2D.Value ? PathMode.TopDown2D : PathMode.Full3D;
 
         tween = body.DOPath(pts, duration.Value, PathType.CatmullRom, mode)
                     .SetEase(Ease.Linear)
+                    // 不让 DOPath 管理旋转（我们自己在 OnUpdate 控制），因此不调用 SetOptions(orientToPath)
                     .OnComplete(() =>
                     {
                         if (onCompleteEvent != null) Fsm.Event(onCompleteEvent);
@@ -159,13 +181,11 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
         // —— 平滑转向 —— //
         if (useExponentialSmoothing.Value)
         {
-            // 指数平滑（平滑且与帧率无关）
             float t = 1f - Mathf.Exp(-Mathf.Max(0f, turnSharpness.Value) * Time.deltaTime);
             body.rotation = Quaternion.Slerp(body.rotation, desired, t);
         }
         else
         {
-            // 最大角速度限幅（机械感更强）
             float maxDeg = Mathf.Max(1f, maxTurnSpeedDegPerSec.Value) * Time.deltaTime;
             body.rotation = Quaternion.RotateTowards(body.rotation, desired, maxDeg);
         }
@@ -184,7 +204,8 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
             var obj = pathPoints.Get(i) as GameObject;
             if (obj == null) continue;
             Vector3 p = obj.transform.position;
-            if (topDown2D.Value) p.z = body.position.z;
+            // 顶视：把所有路径点的 Z 固定为“物体当前 Z”（保持同一平面）
+            if (topDown2D.Value) p.z = body != null ? body.position.z : p.z;
             list.Add(p);
         }
         return list.ToArray();
@@ -193,7 +214,6 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
     // 从当前位置开始，沿着路径段（lookIdx 起），向前累计距离，得到 look-ahead 目标点
     private Vector3 SampleLookahead(Vector3 currentPos, int startIdx, float aheadDist)
     {
-        // 先处理当前位置 -> 当前 lookIdx 点这一小段
         Vector3 segStart = currentPos;
         int idx = Mathf.Clamp(startIdx, 0, pts.Length - 1);
 
@@ -206,22 +226,13 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
             if (segLen > EPS)
             {
                 if (aheadDist <= segLen)
-                {
                     return segStart + seg.normalized * aheadDist;
-                }
+
                 aheadDist -= segLen;
             }
 
-            // 继续下一段
-            if (i < pts.Length - 1)
-            {
-                segStart = segEnd;
-            }
-            else
-            {
-                // 超出路径总长：就返回最后一个点
-                return segEnd;
-            }
+            if (i < pts.Length - 1) segStart = segEnd;
+            else return segEnd; // 路径尾
         }
 
         return pts[pts.Length - 1];
