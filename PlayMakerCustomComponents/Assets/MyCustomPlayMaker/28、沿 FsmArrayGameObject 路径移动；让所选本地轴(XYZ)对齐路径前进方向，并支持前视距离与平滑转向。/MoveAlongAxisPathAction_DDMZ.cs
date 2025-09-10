@@ -7,7 +7,7 @@ using HutongGames.PlayMaker;
 using UnityEngine;
 
 [ActionCategory("Custom/Enemy")]
-[HutongGames.PlayMaker.Tooltip("沿 FsmArray<GameObject> 路径移动；让所选本地轴(X/Y/Z)对齐路径前进方向，并支持前视距离与平滑转向。起点强制为第一个路径点。")]
+[HutongGames.PlayMaker.Tooltip("沿 FsmArray<GameObject> 路径移动；可选从路径起点或当前位置出发；让所选本地轴(X/Y/Z)对齐路径前进方向，支持前视距离与平滑转向。")]
 public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
 {
     [RequiredField]
@@ -27,6 +27,10 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
 
     [HutongGames.PlayMaker.Tooltip("当目标 SetActive(false) 时是否停止")]
     public FsmBool stopWhenOwnerDisabled;
+
+    // —— 起点选择 —— //
+    [HutongGames.PlayMaker.Tooltip("从路径第一个点(P0)开始。若不勾选，则从物体当前位置开始（自动把当前位置插到路径最前，避免跳变）。")]
+    public FsmBool startFromFirstPoint;
 
     // —— 朝向控制 —— //
     [HutongGames.PlayMaker.Tooltip("用物体本地 X 轴对齐路径方向")]
@@ -65,7 +69,7 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
     private GameObject ownerGo;
     private Transform body;
     private TweenerCore<Vector3, Path, PathOptions> tween;
-    private Vector3[] pts;      // 路径点
+    private Vector3[] pts;      // 实际用于 DOPath 的路径（可能在前面插入了当前位置）
     private int lookIdx;        // 用于“瞄准”的参考索引
     private const float EPS = 1e-6f;
 
@@ -77,9 +81,11 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
         onCompleteEvent = null;
         stopWhenOwnerDisabled = true;
 
+        startFromFirstPoint = true;     // 默认从路径 P0 开始
+
         aimWithLocalX = false;
         aimWithLocalY = false;
-        aimWithLocalZ = true;   // 默认用本地 Z
+        aimWithLocalZ = true;           // 默认用本地 Z
         invertAxis = false;
 
         topDown2D = false;
@@ -109,35 +115,53 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
         if (!aimWithLocalX.Value && !aimWithLocalY.Value && !aimWithLocalZ.Value)
             aimWithLocalZ.Value = true;
 
-        pts = CollectPoints();
-        if (pts == null || pts.Length < 2) { Finish(); return; }
+        // 收集原始路径点（已根据 topDown2D 把 Z 固定为 body.Z）
+        var raw = CollectPointsRaw();
+        if (raw == null || raw.Length < 2) { Finish(); return; }
 
-        // —— 关键改动：开场把物体位置“吸附”到第一个路径点 —— //
-        body.position = pts[0];
+        List<Vector3> used = new List<Vector3>(raw.Length + 1);
+        Vector3 initDir;
 
-        // 初始朝向：对齐到 P0->P1（按所选轴 & 反向）
-        Vector3 initDir = (pts[1] - pts[0]);
+        if (startFromFirstPoint.Value)
+        {
+            // —— 从 P0 开始：瞬移到 P0，初始朝向对齐 P0->P1 —— //
+            body.position = raw[0];
+            used.AddRange(raw);
+            initDir = raw[1] - raw[0];
+            lookIdx = 1; // 瞄向第二个点
+        }
+        else
+        {
+            // —— 从当前位置开始：把当前位置插到路径前端，避免跳变；初始朝向对齐 当前→P0 —— //
+            Vector3 startPos = body.position;
+            if (topDown2D.Value) startPos.z = startPos.z; // 锁Z：保持自身Z
+            used.Add(startPos);
+            used.AddRange(raw);
+            initDir = raw[0] - startPos;
+            lookIdx = 1; // 瞄向第一个真实路径点（raw[0]）
+        }
+
+        // 初始朝向（按所选轴 + 反向）
         if (topDown2D.Value) initDir.z = 0f;
         if (initDir.sqrMagnitude > EPS)
         {
-            if (invertAxis.Value) initDir = -initDir;
-            initDir.Normalize();
+            Vector3 dir = invertAxis.Value ? -initDir : initDir;
+            dir.Normalize();
             Vector3 chosenLocalAxis = GetChosenLocalAxis();
             Vector3 currentAxisWorld = body.TransformDirection(chosenLocalAxis);
             if (currentAxisWorld.sqrMagnitude < EPS) currentAxisWorld = chosenLocalAxis; // 容错
-            Quaternion desired = Quaternion.FromToRotation(currentAxisWorld, initDir) * body.rotation;
+            Quaternion desired = Quaternion.FromToRotation(currentAxisWorld, dir) * body.rotation;
             body.rotation = desired; // 入场时立即对齐
         }
 
-        // look 索引从 1 开始（瞄向第二个点）
-        lookIdx = 1;
+        // 保存用于 OnUpdate 的路径
+        pts = used.ToArray();
 
-        // 顶视或全3D模式（仅影响 DOTween 内部路径解算）
+        // 路径模式（仅影响 DOPath 内部解算）
         var mode = topDown2D.Value ? PathMode.TopDown2D : PathMode.Full3D;
 
         tween = body.DOPath(pts, duration.Value, PathType.CatmullRom, mode)
                     .SetEase(Ease.Linear)
-                    // 不让 DOPath 管理旋转（我们自己在 OnUpdate 控制），因此不调用 SetOptions(orientToPath)
                     .OnComplete(() =>
                     {
                         if (onCompleteEvent != null) Fsm.Event(onCompleteEvent);
@@ -153,7 +177,7 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
             Finish();
             return;
         }
-        if (tween == null || !tween.IsActive()) return;
+        if (tween == null || !tween.IsActive() || pts == null || pts.Length < 2) return;
 
         // 推进 lookIdx（靠近当前目标点则前进，减少抖动）
         if (lookIdx < pts.Length - 1)
@@ -162,7 +186,7 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
             if ((pts[lookIdx] - body.position).sqrMagnitude <= th2) lookIdx++;
         }
 
-        // —— 前视采样：从当前位置沿路径向前 lookAheadDistance 米取目标点 —— //
+        // —— 前视采样 —— //
         Vector3 target = SampleLookahead(body.position, lookIdx, Mathf.Max(lookAheadDistance.Value, 0.001f));
 
         // 顶视：锁定 Z 平面
@@ -172,7 +196,7 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
         if (dir.sqrMagnitude < EPS) return;
         dir.Normalize();
 
-        // 计算“期望旋转”（让所选本地轴对齐到 dir）
+        // 让“所选本地轴”对齐到 dir
         Vector3 chosenLocalAxis = GetChosenLocalAxis();
         Vector3 currentAxisWorld = body.TransformDirection(chosenLocalAxis);
         if (currentAxisWorld.sqrMagnitude < EPS) return;
@@ -195,17 +219,19 @@ public class MoveAlongAxisPathAction_DDMZ : FsmStateAction
 
     // —— 工具方法 —— //
 
-    private Vector3[] CollectPoints()
+    // 仅收集“原始路径点”，不插入当前位置；若 topDown2D，则把所有点的 Z 固定为 body.Z
+    private Vector3[] CollectPointsRaw()
     {
         if (pathPoints == null || pathPoints.Length == 0) return null;
         var list = new List<Vector3>(pathPoints.Length);
+        float bodyZ = (body != null) ? body.position.z : 0f;
+
         for (int i = 0; i < pathPoints.Length; i++)
         {
             var obj = pathPoints.Get(i) as GameObject;
             if (obj == null) continue;
             Vector3 p = obj.transform.position;
-            // 顶视：把所有路径点的 Z 固定为“物体当前 Z”（保持同一平面）
-            if (topDown2D.Value) p.z = body != null ? body.position.z : p.z;
+            if (topDown2D.Value) p.z = bodyZ; // 顶视锁 Z：取物体当前 Z
             list.Add(p);
         }
         return list.ToArray();
