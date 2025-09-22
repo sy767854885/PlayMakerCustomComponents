@@ -3,8 +3,8 @@ using HutongGames.PlayMaker;
 using System.Collections.Generic;
 
 [ActionCategory("Custom/Detection")]
-[HutongGames.PlayMaker.Tooltip("优化版：2D/3D射线检测物体是否穿过指定层级，每颗子弹每帧只做一次射线检测，穿过不同层触发对应事件。")]
-public class RaycastPassThroughOptimized : FsmStateAction
+[HutongGames.PlayMaker.Tooltip("优化版：2D/3D射线检测物体是否穿过指定层级，每颗子弹每帧只做一次射线检测，穿过不同层触发事件，并返回碰到的物体。")]
+public class RaycastPassThroughReturnObject : FsmStateAction
 {
     [RequiredField]
     public FsmOwnerDefault gameObject;
@@ -25,9 +25,10 @@ public class RaycastPassThroughOptimized : FsmStateAction
     [HutongGames.PlayMaker.Tooltip("层级与事件映射数组")]
     public LayerEventEntry[] layerEventList;
 
-    private Vector3 lastPosition;
+    [HutongGames.PlayMaker.Tooltip("碰到的物体输出")]
+    public FsmGameObject hitObject;
 
-    // 优化用：缓存一次合并的LayerMask
+    private Vector3 lastPosition;
     private int combinedLayerMask;
 
     public override void OnEnter()
@@ -65,6 +66,7 @@ public class RaycastPassThroughOptimized : FsmStateAction
             RaycastHit2D hit = Physics2D.Linecast(lastPosition, currentPosition, combinedLayerMask);
             if (hit.collider != null)
             {
+                hitObject.Value = hit.collider.gameObject;  // 返回碰到的物体
                 TriggerEventByLayer(hit.collider.gameObject.layer);
             }
         }
@@ -73,6 +75,7 @@ public class RaycastPassThroughOptimized : FsmStateAction
             // 3D射线检测一次
             if (Physics.Linecast(lastPosition, currentPosition, out RaycastHit hit3D, combinedLayerMask))
             {
+                hitObject.Value = hit3D.collider.gameObject; // 返回碰到的物体
                 TriggerEventByLayer(hit3D.collider.gameObject.layer);
             }
         }
@@ -89,8 +92,7 @@ public class RaycastPassThroughOptimized : FsmStateAction
             if (entry != null && entry.layer.Value == layer && entry.passThroughEvent != null)
             {
                 Fsm.Event(entry.passThroughEvent);
-                // 一次只触发最先匹配的事件，避免重复
-                break;
+                break; // 一次只触发最先匹配事件
             }
         }
     }
