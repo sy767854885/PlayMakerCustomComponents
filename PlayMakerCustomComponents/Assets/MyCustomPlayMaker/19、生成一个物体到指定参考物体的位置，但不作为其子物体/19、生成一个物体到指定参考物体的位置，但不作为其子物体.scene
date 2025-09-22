@@ -189,8 +189,8 @@ MonoBehaviour:
       hideUnused: 0
       transitions:
       - fsmEvent:
-          name: Finish
-          isSystemEvent: 0
+          name: FINISHED
+          isSystemEvent: 1
           isGlobal: 0
         toState: "\u72B6\u6001 2"
         linkStyle: 0
@@ -296,7 +296,7 @@ MonoBehaviour:
           tooltip: 
           showInInspector: 0
           networkSync: 0
-          value: "\u653E\u5927\u4E86"
+          value: "\u5B8C\u6BD5"
         fsmObjectParams: []
         fsmVarParams: []
         fsmArrayParams: []
