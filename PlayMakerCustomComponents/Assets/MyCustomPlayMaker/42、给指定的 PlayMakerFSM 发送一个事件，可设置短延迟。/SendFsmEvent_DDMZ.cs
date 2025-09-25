@@ -3,7 +3,7 @@ using HutongGames.PlayMaker;
 using System.Collections;
 
 [ActionCategory("Custom/FSM")]
-[HutongGames.PlayMaker.Tooltip("给指定的 PlayMakerFSM 发送一个事件，可设置短延迟。")]
+[HutongGames.PlayMaker.Tooltip("给指定的 PlayMakerFSM 发送一个事件，可选择是否延迟发送。")]
 public class SendFsmEvent_DDMZ : FsmStateAction
 {
     [RequiredField]
@@ -15,14 +15,18 @@ public class SendFsmEvent_DDMZ : FsmStateAction
     [HutongGames.PlayMaker.Tooltip("发送给目标 FSM 的事件名称。")]
     public FsmString eventName;
 
-    [HutongGames.PlayMaker.Tooltip("发送事件前的短延迟时间（秒）。")]
+    [HutongGames.PlayMaker.Tooltip("是否启用延迟发送事件。")]
+    public FsmBool useDelay;
+
+    [HutongGames.PlayMaker.Tooltip("延迟时间（秒），只有启用延迟时生效。")]
     public FsmFloat delayTime;
 
     public override void Reset()
     {
         targetFsm = null;
         eventName = new FsmString { UseVariable = false, Value = "" };
-        delayTime = 0.01f; // 默认短延迟
+        useDelay = false;
+        delayTime = 0.01f;
     }
 
     public override void OnEnter()
@@ -45,7 +49,8 @@ public class SendFsmEvent_DDMZ : FsmStateAction
             yield break;
         }
 
-        if (delayTime.Value > 0f)
+        // 如果启用延迟且 delayTime > 0，则等待
+        if (useDelay.Value && delayTime.Value > 0f)
             yield return new WaitForSeconds(delayTime.Value);
 
         SendEventToTargetFsm(fsmComponent, eventName.Value);
@@ -59,14 +64,12 @@ public class SendFsmEvent_DDMZ : FsmStateAction
 
         try
         {
-            // 优先使用 PlayMakerFSM.SendEvent(string)
             fsmComponent.SendEvent(eventName);
         }
         catch
         {
             try
             {
-                // 备用：通过内部 Fsm.Event(FsmEvent)
                 if (fsmComponent.Fsm != null)
                 {
                     var tempEvent = FsmEvent.GetFsmEvent(eventName);
