@@ -3,7 +3,7 @@ using HutongGames.PlayMaker;
 using DG.Tweening;
 
 [ActionCategory("Custom/Movement")]
-[HutongGames.PlayMaker.Tooltip("使用 DOTween 移动物体到指定位置，可选择只移动X/Y/Z轴，并可切换世界/本地坐标")]
+[HutongGames.PlayMaker.Tooltip("使用 DOTween 移动物体到指定位置，可选择只移动X/Y/Z轴，并可切换世界/本地坐标。支持按时长或按速度移动。")]
 public class DoMoveAxis_DDMZ : FsmStateAction
 {
     [RequiredField]
@@ -25,8 +25,14 @@ public class DoMoveAxis_DDMZ : FsmStateAction
     [HutongGames.PlayMaker.Tooltip("是否使用本地坐标（TRUE=localPosition/DOLocalMove；FALSE=position/DOMove）")]
     public FsmBool useLocalSpace;
 
-    [HutongGames.PlayMaker.Tooltip("移动持续时间（秒）")]
+    [HutongGames.PlayMaker.Tooltip("按时间移动时使用的持续时间（秒）。当 “Use Speed” 为 FALSE 时生效")]
     public FsmFloat duration;
+
+    [HutongGames.PlayMaker.Tooltip("按速度移动时使用的速度（单位/秒）。当 “Use Speed” 为 TRUE 时生效")]
+    public FsmFloat speed;
+
+    [HutongGames.PlayMaker.Tooltip("是否按速度移动（TRUE=按 speed 移动；FALSE=按 duration 移动）")]
+    public FsmBool useSpeed;
 
     [HutongGames.PlayMaker.Tooltip("缓动类型（Ease）")]
     public Ease easeType = Ease.Linear;
@@ -40,13 +46,16 @@ public class DoMoveAxis_DDMZ : FsmStateAction
     {
         gameObject = null;
         targetPosition = null;
-        moveX = false;
-        moveY = false;
-        moveZ = false;
-        useLocalSpace = false; // 默认世界坐标
+        moveX = true;
+        moveY = true;
+        moveZ = true;
+        useLocalSpace = false;
         duration = 1f;
+        speed = 1f;
+        useSpeed = false;
         easeType = Ease.Linear;
         onCompleteEvent = null;
+        tween = null;
     }
 
     public override void OnEnter()
@@ -58,22 +67,38 @@ public class DoMoveAxis_DDMZ : FsmStateAction
             return;
         }
 
-        // 取起始与目标
-        Vector3 startPos = useLocalSpace.Value ? go.transform.localPosition : go.transform.position;
+        // 如果没有选中任何轴，则认为没有移动
+        if ((moveX == null || !moveX.Value) &&
+            (moveY == null || !moveY.Value) &&
+            (moveZ == null || !moveZ.Value))
+        {
+            // nothing to move
+            if (onCompleteEvent != null) Fsm.Event(onCompleteEvent);
+            Finish();
+            return;
+        }
+
+        Vector3 startPos = useLocalSpace != null && useLocalSpace.Value ? go.transform.localPosition : go.transform.position;
         Vector3 endPos = startPos;
 
         if (targetPosition != null)
         {
             Vector3 target = targetPosition.Value;
-            if (moveX.Value) endPos.x = target.x;
-            if (moveY.Value) endPos.y = target.y;
-            if (moveZ.Value) endPos.z = target.z;
+            if (moveX != null && moveX.Value) endPos.x = target.x;
+            if (moveY != null && moveY.Value) endPos.y = target.y;
+            if (moveZ != null && moveZ.Value) endPos.z = target.z;
         }
 
-        // 持续时间<=0时，直接瞬移并触发事件
-        if (duration.Value <= 0f)
+        // 如果目标位置与起始位置相同（在选中的轴上），直接完成
+        Vector3 diff = endPos - startPos;
+        float movedDistance = 0f;
+        if (moveX != null && moveX.Value) movedDistance += Mathf.Abs(diff.x);
+        if (moveY != null && moveY.Value) movedDistance += Mathf.Abs(diff.y);
+        if (moveZ != null && moveZ.Value) movedDistance += Mathf.Abs(diff.z);
+
+        if (Mathf.Approximately(movedDistance, 0f))
         {
-            if (useLocalSpace.Value) go.transform.localPosition = endPos;
+            if (useLocalSpace != null && useLocalSpace.Value) go.transform.localPosition = endPos;
             else go.transform.position = endPos;
 
             if (onCompleteEvent != null) Fsm.Event(onCompleteEvent);
@@ -81,17 +106,55 @@ public class DoMoveAxis_DDMZ : FsmStateAction
             return;
         }
 
-        // 根据空间模式选择 DOMove / DOLocalMove
-        tween = useLocalSpace.Value
-            ? go.transform.DOLocalMove(endPos, duration.Value)
-            : go.transform.DOMove(endPos, duration.Value);
+        bool speedBased = useSpeed != null && useSpeed.Value;
 
-        tween.SetEase(easeType)
-             .OnComplete(() =>
-             {
-                 if (onCompleteEvent != null) Fsm.Event(onCompleteEvent);
-                 Finish();
-             });
+        // 处理瞬移或无效参数
+        if (!speedBased)
+        {
+            if (duration == null || duration.Value <= 0f)
+            {
+                // 瞬移
+                if (useLocalSpace != null && useLocalSpace.Value) go.transform.localPosition = endPos;
+                else go.transform.position = endPos;
+
+                if (onCompleteEvent != null) Fsm.Event(onCompleteEvent);
+                Finish();
+                return;
+            }
+        }
+        else
+        {
+            if (speed == null || speed.Value <= 0f)
+            {
+                // 无效速度，直接结束（不做移动）
+                Finish();
+                return;
+            }
+        }
+
+        float tweenParam = speedBased ? speed.Value : duration.Value;
+
+        // 创建 tween：DOMove / DOLocalMove 接受的第二个参数会被 SetSpeedBased(true) 时解释为 speed（units/sec）
+        tween = (useLocalSpace != null && useLocalSpace.Value)
+            ? go.transform.DOLocalMove(endPos, tweenParam)
+            : go.transform.DOMove(endPos, tweenParam);
+
+        if (tween != null)
+        {
+            if (speedBased) tween.SetSpeedBased(true);
+            tween.SetEase(easeType)
+                 .OnComplete(() =>
+                 {
+                     if (onCompleteEvent != null) Fsm.Event(onCompleteEvent);
+                     Finish();
+                 });
+        }
+        else
+        {
+            // 创建失败则直接结束
+            if (onCompleteEvent != null) Fsm.Event(onCompleteEvent);
+            Finish();
+        }
     }
 
     public override void OnExit()
@@ -99,6 +162,7 @@ public class DoMoveAxis_DDMZ : FsmStateAction
         if (tween != null && tween.IsActive())
         {
             tween.Kill();
+            tween = null;
         }
     }
 }
